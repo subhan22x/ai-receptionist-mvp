@@ -5,6 +5,9 @@ import {
   createRealtimeSession,
   LOCAL_TIMEZONE,
 } from "../api";
+import { Ringback } from "./ringback";
+
+const RINGBACK_AUDIO_SRC = "/ringback.mp3";
 
 export type RealtimeStatus =
   | "idle"
@@ -187,6 +190,9 @@ export class RealtimeClient {
   private knownCustomerId: string | null = null;
   private knownAppointmentId: string | null = null;
   private status: RealtimeStatus = "idle";
+  private ringback: Ringback | null = null;
+  private ringbackEnded = false;
+  private connectionReady = false;
 
   on(listener: Listener) {
     this.listeners.add(listener);
@@ -206,10 +212,19 @@ export class RealtimeClient {
     if (this.status === "in_call" || this.status === "connecting") return;
     this.emit({ kind: "status", status: "connecting" });
 
+    this.ringbackEnded = false;
+    this.connectionReady = false;
+    this.ringback = new Ringback();
+    this.ringback.start(RINGBACK_AUDIO_SRC, () => {
+      this.ringbackEnded = true;
+      this.maybeStartGreeting();
+    });
+
     let session;
     try {
       session = await createRealtimeSession();
     } catch (err) {
+      this.stopRingback();
       this.emit({
         kind: "error",
         message: `Failed to create session: ${(err as Error).message}`,
@@ -221,6 +236,7 @@ export class RealtimeClient {
     const ephemeralKey = session.client_secret?.value;
     const model = session.model;
     if (!ephemeralKey) {
+      this.stopRingback();
       this.emit({ kind: "error", message: "Missing ephemeral key from session." });
       this.emit({ kind: "status", status: "error" });
       return;
@@ -229,6 +245,7 @@ export class RealtimeClient {
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
+      this.stopRingback();
       this.emit({
         kind: "error",
         message: `Microphone permission was denied or unavailable: ${(err as Error).message}`,
@@ -297,9 +314,6 @@ export class RealtimeClient {
   }
 
   private onDataChannelOpen() {
-    this.emit({ kind: "status", status: "in_call" });
-    this.emit({ kind: "info", message: "AI Receptionist is listening" });
-
     this.send({
       type: "session.update",
       session: {
@@ -310,12 +324,24 @@ export class RealtimeClient {
         input_audio_transcription: { model: "whisper-1" },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.6,
+          threshold: 0.5,
           prefix_padding_ms: 300,
-          silence_duration_ms: 800,
+          silence_duration_ms: 1130,
         },
       },
     });
+
+    this.connectionReady = true;
+    this.maybeStartGreeting();
+  }
+
+  private maybeStartGreeting() {
+    if (!this.ringbackEnded || !this.connectionReady) return;
+    if (this.status !== "connecting") return;
+
+    this.stopRingback();
+    this.emit({ kind: "status", status: "in_call" });
+    this.emit({ kind: "info", message: "AI Receptionist is listening" });
 
     this.send({
       type: "response.create",
@@ -325,6 +351,11 @@ export class RealtimeClient {
           "say this is XYZ plumbing, and ask the caller 'how can I help you today'",
       },
     });
+  }
+
+  private stopRingback() {
+    this.ringback?.stop();
+    this.ringback = null;
   }
 
   private onDataChannelMessage(e: MessageEvent) {
@@ -449,6 +480,10 @@ export class RealtimeClient {
   async stop() {
     if (this.status === "ended" || this.status === "idle") return;
     this.emit({ kind: "status", status: "ending" });
+
+    this.stopRingback();
+    this.ringbackEnded = false;
+    this.connectionReady = false;
 
     try {
       this.dc?.close();
