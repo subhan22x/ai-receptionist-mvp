@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dashboard as DashboardData, getDashboard, resetDemo } from "../api";
+import {
+  Dashboard as DashboardData,
+  getDashboard,
+  REALTIME_MODELS,
+  RealtimeModelId,
+  resetDemo,
+} from "../api";
 import {
   RealtimeClient,
   RealtimeStatus,
@@ -21,6 +27,7 @@ export function Dashboard() {
   const [callStatus, setCallStatus] = useState<RealtimeStatus>("idle");
   const [callMessages, setCallMessages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [model, setModel] = useState<RealtimeModelId>(REALTIME_MODELS.full);
 
   const clientRef = useRef<RealtimeClient | null>(null);
   if (!clientRef.current) clientRef.current = new RealtimeClient();
@@ -67,8 +74,8 @@ export function Dashboard() {
 
   const onStart = useCallback(async () => {
     setCallMessages([]);
-    await client.start();
-  }, [client]);
+    await client.start(model);
+  }, [client, model]);
 
   const onStop = useCallback(async () => {
     await client.stop();
@@ -128,6 +135,11 @@ export function Dashboard() {
       <p className="text-sm text-ink-500 mb-6">Never miss a lead again.</p>
 
       <div className="flex flex-col items-center mb-8">
+        <ModelToggle
+          model={model}
+          onChange={setModel}
+          disabled={callStatus === "connecting" || callStatus === "in_call"}
+        />
         <CallButton status={callStatus} onStart={onStart} onStop={onStop} />
         {headerStatus && (
           <div className="mt-3">
@@ -176,6 +188,59 @@ export function Dashboard() {
         >
           Reset demo data
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ModelToggle({
+  model,
+  onChange,
+  disabled,
+}: {
+  model: RealtimeModelId;
+  onChange: (m: RealtimeModelId) => void;
+  disabled: boolean;
+}) {
+  const options: { id: RealtimeModelId; label: string; hint: string }[] = [
+    { id: REALTIME_MODELS.full, label: "GPT-4o", hint: "Preview, higher cost" },
+    { id: REALTIME_MODELS.mini, label: "GPT-4o mini", hint: "Preview mini, cheaper" },
+    { id: REALTIME_MODELS.gaFull, label: "Realtime", hint: "GA, recommended" },
+    { id: REALTIME_MODELS.gaMini, label: "Realtime mini", hint: "GA mini, cheapest" },
+  ];
+  return (
+    <div className="mb-4 flex flex-col items-center">
+      <span className="text-[11px] uppercase tracking-[0.2em] text-ink-500 mb-2">
+        Model
+      </span>
+      <div
+        role="radiogroup"
+        aria-label="Realtime model"
+        className="flex flex-wrap justify-center gap-1 rounded-2xl bg-sand-50 shadow-card p-1 max-w-md"
+      >
+        {options.map((opt) => {
+          const selected = opt.id === model;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              title={opt.hint}
+              disabled={disabled}
+              onClick={() => onChange(opt.id)}
+              className={
+                "px-4 py-1.5 rounded-full text-xs font-medium transition " +
+                (selected
+                  ? "bg-flame-600 text-white shadow-sm"
+                  : "text-ink-700 hover:bg-sand-200") +
+                (disabled ? " opacity-60 cursor-not-allowed" : "")
+              }
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

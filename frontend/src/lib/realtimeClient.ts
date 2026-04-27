@@ -4,6 +4,7 @@ import {
   createCustomer,
   createRealtimeSession,
   LOCAL_TIMEZONE,
+  RealtimeModelId,
 } from "../api";
 import { Ringback } from "./ringback";
 
@@ -208,7 +209,7 @@ export class RealtimeClient {
     for (const l of this.listeners) l(e);
   }
 
-  async start() {
+  async start(requestedModel?: RealtimeModelId) {
     if (this.status === "in_call" || this.status === "connecting") return;
     this.emit({ kind: "status", status: "connecting" });
 
@@ -222,7 +223,7 @@ export class RealtimeClient {
 
     let session;
     try {
-      session = await createRealtimeSession();
+      session = await createRealtimeSession(requestedModel);
     } catch (err) {
       this.stopRingback();
       this.emit({

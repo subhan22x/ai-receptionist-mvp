@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import httpx
 from fastapi import HTTPException
@@ -8,6 +9,13 @@ from .config import get_settings
 logger = logging.getLogger(__name__)
 
 REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions"
+
+ALLOWED_REALTIME_MODELS = {
+    "gpt-4o-realtime-preview-2024-12-17",
+    "gpt-4o-mini-realtime-preview-2024-12-17",
+    "gpt-realtime",
+    "gpt-realtime-mini",
+}
 
 SYSTEM_INSTRUCTIONS = (
     "You are an AI receptionist for a plumbing company. Your job is to answer "
@@ -24,7 +32,7 @@ SYSTEM_INSTRUCTIONS = (
 )
 
 
-async def create_ephemeral_session() -> dict:
+async def create_ephemeral_session(model: Optional[str] = None) -> dict:
     settings = get_settings()
     if not settings.openai_api_key:
         raise HTTPException(
@@ -32,8 +40,15 @@ async def create_ephemeral_session() -> dict:
             detail="OPENAI_API_KEY is not configured on the backend.",
         )
 
+    if model and model not in ALLOWED_REALTIME_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported model: {model}",
+        )
+    selected_model = model or settings.openai_realtime_model
+
     payload = {
-        "model": settings.openai_realtime_model,
+        "model": selected_model,
         "voice": settings.openai_realtime_voice,
         "modalities": ["audio", "text"],
         "instructions": SYSTEM_INSTRUCTIONS,

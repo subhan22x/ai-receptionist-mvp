@@ -89,8 +89,20 @@ export const getAppointments = () => http<Appointment[]>("/api/appointments");
 export const getCalls = () => http<Call[]>("/api/calls");
 export const resetDemo = () =>
   http<{ ok: boolean }>("/api/demo/reset", { method: "POST" });
-export const createRealtimeSession = () =>
-  http<RealtimeSession>("/api/realtime/session", { method: "POST" });
+export const REALTIME_MODELS = {
+  full: "gpt-4o-realtime-preview-2024-12-17",
+  mini: "gpt-4o-mini-realtime-preview-2024-12-17",
+  gaFull: "gpt-realtime",
+  gaMini: "gpt-realtime-mini",
+} as const;
+
+export type RealtimeModelId =
+  (typeof REALTIME_MODELS)[keyof typeof REALTIME_MODELS];
+
+export const createRealtimeSession = (model?: RealtimeModelId) => {
+  const qs = model ? `?model=${encodeURIComponent(model)}` : "";
+  return http<RealtimeSession>(`/api/realtime/session${qs}`, { method: "POST" });
+};
 
 export const createCustomer = (payload: {
   full_name: string;

@@ -39,8 +39,8 @@ def _parse_date(value) -> date:
 # ---------------------------------------------------------------------------
 
 @router.post("/realtime/session")
-async def realtime_session():
-    data = await create_ephemeral_session()
+async def realtime_session(model: Optional[str] = None):
+    data = await create_ephemeral_session(model=model)
     return data
 
 
