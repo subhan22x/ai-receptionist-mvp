@@ -42,12 +42,19 @@ def create_app() -> FastAPI:
 
     app.include_router(router, prefix="/api")
 
-    frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
-    if frontend_dist.exists():
-        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
-        logger.info("Serving frontend assets from %s", frontend_dist)
+    repo_root = Path(__file__).resolve().parents[2]
+    frontend_dist = repo_root / "frontend" / "dist"
+    bundled_frontend = repo_root / "backend" / "static"
+    static_dir = frontend_dist if frontend_dist.exists() else bundled_frontend
+    if static_dir.exists():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
+        logger.info("Serving frontend assets from %s", static_dir)
     else:
-        logger.warning("Frontend build directory not found at %s", frontend_dist)
+        logger.warning(
+            "Frontend build directory not found at %s or %s",
+            frontend_dist,
+            bundled_frontend,
+        )
 
     logger.info("FastAPI app initialized. Frontend origin: %s", settings.frontend_url)
     return app
