@@ -48,9 +48,9 @@ indexes the API uses.
 
 1. Go to <https://platform.openai.com/api-keys> and create a new secret key.
 2. Make sure your account has access to the **Realtime API** (enabled by
-   default for paid accounts). The default model used here is
-   `gpt-4o-realtime-preview-2024-12-17` — override with
-   `OPENAI_REALTIME_MODEL` if you have a newer one.
+   default for paid accounts). The dashboard includes a model picker, so the
+   selected Realtime model is sent with each call instead of being controlled by
+   an environment variable.
 
 ## 4. Backend environment variables
 
@@ -58,8 +58,6 @@ Copy [`backend/.env.example`](backend/.env.example) to `backend/.env` and fill i
 
 ```env
 OPENAI_API_KEY=sk-...
-OPENAI_REALTIME_MODEL=gpt-4o-realtime-preview-2024-12-17
-OPENAI_REALTIME_VOICE=alloy
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 FRONTEND_URL=http://localhost:5173

@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api_routes import router
 from .config import get_settings
+from .realtime_session import ALLOWED_REALTIME_MODELS, DEFAULT_REALTIME_MODEL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,7 +38,8 @@ def create_app() -> FastAPI:
             "status": "ok",
             "supabase_configured": bool(settings.supabase_url and settings.supabase_service_role_key),
             "openai_configured": bool(settings.openai_api_key),
-            "model": settings.openai_realtime_model,
+            "default_model": DEFAULT_REALTIME_MODEL,
+            "allowed_models": sorted(ALLOWED_REALTIME_MODELS),
         }
 
     app.include_router(router, prefix="/api")

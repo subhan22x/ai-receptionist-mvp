@@ -9,6 +9,8 @@ from .config import get_settings
 logger = logging.getLogger(__name__)
 
 REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions"
+DEFAULT_REALTIME_MODEL = "gpt-4o-realtime-preview-2024-12-17"
+DEFAULT_REALTIME_VOICE = "alloy"
 
 ALLOWED_REALTIME_MODELS = {
     "gpt-4o-realtime-preview-2024-12-17",
@@ -45,11 +47,11 @@ async def create_ephemeral_session(model: Optional[str] = None) -> dict:
             status_code=400,
             detail=f"Unsupported model: {model}",
         )
-    selected_model = model or settings.openai_realtime_model
+    selected_model = model or DEFAULT_REALTIME_MODEL
 
     payload = {
         "model": selected_model,
-        "voice": settings.openai_realtime_voice,
+        "voice": DEFAULT_REALTIME_VOICE,
         "modalities": ["audio", "text"],
         "instructions": SYSTEM_INSTRUCTIONS,
         "input_audio_transcription": {"model": "whisper-1"},
