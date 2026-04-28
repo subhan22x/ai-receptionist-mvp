@@ -1,6 +1,10 @@
+const configuredBackendUrl = import.meta.env.VITE_BACKEND_URL as
+  | string
+  | undefined;
+
 export const BACKEND_URL =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://localhost:8000";
+  configuredBackendUrl?.replace(/\/$/, "") ||
+  (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 export const LOCAL_TIMEZONE = "America/Chicago";
 

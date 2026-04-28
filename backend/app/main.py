@@ -1,7 +1,9 @@
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .api_routes import router
 from .config import get_settings
@@ -17,9 +19,9 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="AI Receptionist MVP", version="0.1.0")
 
-    allowed_origins = [settings.frontend_url]
-    if settings.frontend_url != "http://localhost:5173":
-        allowed_origins.append("http://localhost:5173")
+    allowed_origins = ["http://localhost:5173"]
+    if settings.frontend_url and settings.frontend_url not in allowed_origins:
+        allowed_origins.append(settings.frontend_url)
 
     app.add_middleware(
         CORSMiddleware,
@@ -39,6 +41,14 @@ def create_app() -> FastAPI:
         }
 
     app.include_router(router, prefix="/api")
+
+    frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if frontend_dist.exists():
+        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+        logger.info("Serving frontend assets from %s", frontend_dist)
+    else:
+        logger.warning("Frontend build directory not found at %s", frontend_dist)
+
     logger.info("FastAPI app initialized. Frontend origin: %s", settings.frontend_url)
     return app
 

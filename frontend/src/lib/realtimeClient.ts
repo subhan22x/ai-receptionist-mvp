@@ -3,7 +3,6 @@ import {
   createCall,
   createCustomer,
   createRealtimeSession,
-  LOCAL_TIMEZONE,
   RealtimeModelId,
 } from "../api";
 import { Ringback } from "./ringback";
