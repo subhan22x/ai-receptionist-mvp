@@ -9,8 +9,8 @@ from .config import get_settings
 logger = logging.getLogger(__name__)
 
 REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions"
-DEFAULT_REALTIME_MODEL = "gpt-4o-realtime-preview-2024-12-17"
-DEFAULT_REALTIME_VOICE = "alloy"
+DEFAULT_REALTIME_MODEL = "gpt-realtime-mini"
+DEFAULT_REALTIME_VOICE = "shimmer"
 
 ALLOWED_REALTIME_MODELS = {
     "gpt-4o-realtime-preview-2024-12-17",

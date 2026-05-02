@@ -22,15 +22,22 @@ def _add_duration(start: time, duration: timedelta = DEFAULT_DURATION) -> time:
     return end_dt.time()
 
 
-def _fetch_day_appointments(supabase: Client, on_date: date) -> list[dict]:
-    res = (
+def _fetch_day_appointments(
+    supabase: Client,
+    on_date: date,
+    business_id: Optional[str] = None,
+) -> list[dict]:
+    query = (
         supabase.table("appointments")
         .select("*")
         .eq("appointment_date", on_date.isoformat())
         .neq("status", "cancelled")
-        .order("start_time")
-        .execute()
     )
+    if business_id is None:
+        query = query.is_("business_id", "null")
+    else:
+        query = query.eq("business_id", business_id)
+    res = query.order("start_time").execute()
     return res.data or []
 
 
@@ -39,12 +46,13 @@ def check_slot_available(
     on_date: date,
     start_time: time,
     end_time: time,
+    business_id: Optional[str] = None,
 ) -> bool:
     """A slot is available if no existing appointment overlaps it.
 
     Two ranges overlap when: new_start < existing_end and new_end > existing_start.
     """
-    rows = _fetch_day_appointments(supabase, on_date)
+    rows = _fetch_day_appointments(supabase, on_date, business_id)
     for row in rows:
         existing_start = time.fromisoformat(row["start_time"])
         existing_end = time.fromisoformat(row["end_time"])
@@ -58,6 +66,7 @@ def get_next_available_slot(
     on_date: date,
     preferred_start_time: time,
     duration: timedelta = DEFAULT_DURATION,
+    business_id: Optional[str] = None,
 ) -> Optional[time]:
     """Walk forward in 1-hour steps from the preferred time until we find a free slot.
 
@@ -67,7 +76,7 @@ def get_next_available_slot(
     if candidate < BUSINESS_OPEN:
         candidate = BUSINESS_OPEN
 
-    rows = _fetch_day_appointments(supabase, on_date)
+    rows = _fetch_day_appointments(supabase, on_date, business_id)
     busy = [
         (time.fromisoformat(r["start_time"]), time.fromisoformat(r["end_time"]))
         for r in rows
@@ -90,6 +99,7 @@ def get_next_available_slot(
 def create_appointment_with_conflict_check(
     supabase: Client,
     *,
+    business_id: Optional[str] = None,
     customer_id: Optional[str],
     title: str,
     service_type: Optional[str],
@@ -101,8 +111,15 @@ def create_appointment_with_conflict_check(
     if end_time is None:
         end_time = _add_duration(start_time)
 
-    if check_slot_available(supabase, appointment_date, start_time, end_time):
+    if check_slot_available(
+        supabase,
+        appointment_date,
+        start_time,
+        end_time,
+        business_id,
+    ):
         payload = {
+            "business_id": business_id,
             "customer_id": customer_id,
             "title": title,
             "service_type": service_type,
@@ -124,7 +141,12 @@ def create_appointment_with_conflict_check(
         logger.info("Booked appointment %s on %s at %s", appt.id, appointment_date, start_time)
         return AppointmentBookResult(booked=True, appointment=appt)
 
-    suggested = get_next_available_slot(supabase, appointment_date, start_time)
+    suggested = get_next_available_slot(
+        supabase,
+        appointment_date,
+        start_time,
+        business_id=business_id,
+    )
     if suggested is None:
         return AppointmentBookResult(
             booked=False,
