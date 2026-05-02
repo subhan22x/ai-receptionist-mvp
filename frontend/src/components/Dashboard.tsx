@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ApiOptions,
+  BusinessSummary,
   Dashboard as DashboardData,
   getDashboard,
   REALTIME_MODELS,
@@ -21,7 +23,21 @@ import { StatusPill } from "./StatusPill";
 
 const POLL_INTERVAL_MS = 3000;
 
-export function Dashboard() {
+type DashboardProps = {
+  mode?: "app" | "demo";
+  accessToken?: string | null;
+  business?: BusinessSummary | null;
+  onLogout?: () => void;
+  onSettings?: () => void;
+};
+
+export function Dashboard({
+  mode = "app",
+  accessToken = null,
+  business = null,
+  onLogout,
+  onSettings,
+}: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [callStatus, setCallStatus] = useState<RealtimeStatus>("idle");
@@ -32,16 +48,30 @@ export function Dashboard() {
   const clientRef = useRef<RealtimeClient | null>(null);
   if (!clientRef.current) clientRef.current = new RealtimeClient();
   const client = clientRef.current;
+  const isDemo = mode === "demo";
+
+  const apiOptions = useMemo<ApiOptions>(
+    () => ({
+      demo: isDemo,
+      accessToken,
+      businessId: business?.id ?? null,
+    }),
+    [accessToken, business?.id, isDemo],
+  );
+
+  useEffect(() => {
+    client.setOptions(apiOptions);
+  }, [apiOptions, client]);
 
   const refresh = useCallback(async () => {
     try {
-      const d = await getDashboard();
+      const d = await getDashboard(apiOptions);
       setData(d);
       setLoadError(null);
     } catch (err) {
       setLoadError((err as Error).message);
     }
-  }, []);
+  }, [apiOptions]);
 
   useEffect(() => {
     refresh();
@@ -114,19 +144,44 @@ export function Dashboard() {
 
   return (
     <div className="min-h-full px-4 sm:px-6 py-6 sm:py-8 max-w-md mx-auto md:max-w-3xl lg:max-w-5xl">
-      <header className="flex items-start justify-between mb-2">
-        <p className="text-flame-600 tracking-[0.2em] text-xs font-semibold uppercase">
-          AI Receptionist
-        </p>
-        <button
-          type="button"
-          onClick={() => refresh()}
-          className="grid place-items-center h-9 w-9 rounded-xl bg-sand-50 shadow-card text-flame-600"
-          aria-label="Manual refresh"
-          title="Refresh dashboard"
-        >
-          <RefreshIcon />
-        </button>
+      <header className="mb-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-flame-600 tracking-[0.2em] text-xs font-semibold uppercase">
+            AI Receptionist
+          </p>
+          <p className="mt-1 text-sm font-medium text-ink-500">
+            {isDemo ? "Public demo" : business?.business_name ?? "Business dashboard"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isDemo && onSettings && (
+            <button
+              type="button"
+              onClick={onSettings}
+              className="rounded-xl bg-sand-50 px-3 py-2 text-sm font-semibold text-ink-700 shadow-card hover:bg-sand-200"
+            >
+              Settings
+            </button>
+          )}
+          {!isDemo && onLogout && (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-xl bg-sand-50 px-3 py-2 text-sm font-semibold text-ink-700 shadow-card hover:bg-sand-200"
+            >
+              Logout
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => refresh()}
+            className="grid h-9 w-9 place-items-center rounded-xl bg-sand-50 text-flame-600 shadow-card"
+            aria-label="Manual refresh"
+            title="Refresh dashboard"
+          >
+            <RefreshIcon />
+          </button>
+        </div>
       </header>
 
       <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-1">
@@ -179,7 +234,8 @@ export function Dashboard() {
         </p>
       )}
 
-      <div className="mt-8 flex justify-center">
+      {isDemo && (
+        <div className="mt-8 flex justify-center">
         <button
           type="button"
           onClick={onReset}
@@ -188,7 +244,8 @@ export function Dashboard() {
         >
           Reset demo data
         </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

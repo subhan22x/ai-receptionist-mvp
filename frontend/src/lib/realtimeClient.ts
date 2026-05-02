@@ -1,4 +1,5 @@
 import {
+  ApiOptions,
   createAppointment,
   createCall,
   createCustomer,
@@ -193,6 +194,11 @@ export class RealtimeClient {
   private ringback: Ringback | null = null;
   private ringbackEnded = false;
   private connectionReady = false;
+  private apiOptions: ApiOptions = {};
+
+  setOptions(options: ApiOptions) {
+    this.apiOptions = options;
+  }
 
   on(listener: Listener) {
     this.listeners.add(listener);
@@ -222,7 +228,7 @@ export class RealtimeClient {
 
     let session;
     try {
-      session = await createRealtimeSession(requestedModel);
+      session = await createRealtimeSession(requestedModel, this.apiOptions);
     } catch (err) {
       this.stopRingback();
       this.emit({
@@ -398,7 +404,7 @@ export class RealtimeClient {
           phone: asString(args.phone) ?? null,
           email: asString(args.email) ?? null,
           address: asString(args.address) ?? null,
-        });
+        }, this.apiOptions);
         this.knownCustomerId = customer.id;
         output = { customer_id: customer.id, ok: true };
         detail = "Customer saved";
@@ -411,7 +417,7 @@ export class RealtimeClient {
           appointment_date: String(args.appointment_date),
           start_time: String(args.start_time),
           notes: asString(args.notes) ?? null,
-        });
+        }, this.apiOptions);
         if (result.booked && result.appointment) {
           this.knownAppointmentId = result.appointment.id;
           output = {
@@ -448,7 +454,7 @@ export class RealtimeClient {
           reminder_preference: asString(args.reminder_preference) ?? null,
           needs_human_follow_up: asBool(args.needs_human_follow_up) ?? false,
           is_emergency: asBool(args.is_emergency) ?? false,
-        });
+        }, this.apiOptions);
         output = { ok: true, call_id: call.id };
         detail = call.needs_human_follow_up
           ? "Human follow up requested"
