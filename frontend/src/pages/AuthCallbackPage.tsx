@@ -4,6 +4,22 @@ import { getMe } from "../api";
 import { LoadingScreen } from "../auth/ProtectedRoute";
 import { supabase } from "../lib/supabase";
 
+const exchangeByCode = new Map<string, Promise<string>>();
+
+function exchangeOAuthCode(code: string) {
+  let exchangePromise = exchangeByCode.get(code);
+  if (!exchangePromise) {
+    exchangePromise = supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+      if (error) throw error;
+      const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error("Missing Supabase session.");
+      return accessToken;
+    });
+    exchangeByCode.set(code, exchangePromise);
+  }
+  return exchangePromise;
+}
+
 export function AuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -23,13 +39,7 @@ export function AuthCallbackPage() {
       }
 
       try {
-        const { data, error: exchangeError } =
-          await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) throw exchangeError;
-
-        const accessToken = data.session?.access_token;
-        if (!accessToken) throw new Error("Missing Supabase session.");
-
+        const accessToken = await exchangeOAuthCode(code);
         const me = await getMe({ accessToken });
         if (cancelled) return;
         navigate(me.onboarding_required ? "/onboarding" : "/dashboard", {

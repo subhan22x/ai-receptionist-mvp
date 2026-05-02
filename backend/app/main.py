@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="AI Receptionist MVP", version="0.1.0")
 
-    allowed_origins = ["http://localhost:5173"]
+    allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
     if settings.frontend_url and settings.frontend_url not in allowed_origins:
         allowed_origins.append(settings.frontend_url)
 
